@@ -133,7 +133,7 @@ export function useOverlayMachine() {
     clearTimers()
     setRecPhase('rec_starting')
     timers.current.push(window.setTimeout(() => setRecPhase('rec_absorbing_start'), 1000))
-    timers.current.push(window.setTimeout(() => setRecPhase('rec_active'), 1350))
+    timers.current.push(window.setTimeout(() => setRecPhase('rec_active'), 1550))
   }, [clearTimers])
 
   const stopRec = useCallback(
@@ -141,9 +141,9 @@ export function useOverlayMachine() {
       if (recRef.current !== 'rec_active') return
       clearTimers()
       pendingLand.current = landOn ?? null
-      setRecPhase('rec_stopping')
-      timers.current.push(window.setTimeout(() => setRecPhase('rec_absorbing_end'), 1000))
-      timers.current.push(window.setTimeout(finishStop, 1350))
+      setRecPhase('rec_absorbing_end')
+      timers.current.push(window.setTimeout(() => setRecPhase('rec_stopping'), 550))
+      timers.current.push(window.setTimeout(finishStop, 1550))
     },
     [clearTimers, finishStop],
   )

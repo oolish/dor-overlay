@@ -218,46 +218,73 @@ function LobbyMenu({
   )
 }
 
+const ISLAND_SPRING = { type: 'spring' as const, bounce: 0.22, duration: 0.55 }
+const TEXT_W = 104
+
 function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean }) {
-  const expanded = recPhase === 'rec_starting' || recPhase === 'rec_stopping'
-  const isDot = recPhase === 'rec_active'
-  const stopping = recPhase === 'rec_stopping' || recPhase === 'rec_absorbing_end'
-  const textW = expanded ? 104 : 0
-  const box = isDot ? REC_ICON : FAB + textW
+  const isDot = recPhase === 'rec_active' || recPhase === 'rec_absorbing_start'
+  const showText = recPhase !== 'idle' && recPhase !== 'rec_active'
+  const stopping = recPhase !== 'rec_starting' && recPhase !== 'rec_absorbing_start'
+  const pillW = FAB + (showText ? TEXT_W : 0)
+  const box = isDot ? REC_ICON : pillW
 
   return (
     <motion.div
       initial={false}
-      animate={{ width: box, height: isDot ? REC_ICON : FAB, rotate: isDot ? 180 : 0 }}
-      transition={{ ...SPRING, rotate: { type: 'spring', stiffness: 400, damping: 28 } }}
-      className={`relative box-border flex items-center overflow-hidden rounded-full ${reverse ? 'flex-row-reverse' : 'flex-row'} ${isDot ? '' : `backdrop-blur-md ${FAB_SURFACE}`}`}
+      animate={{
+        width: box,
+        height: isDot ? REC_ICON : FAB,
+        backgroundColor: isDot ? 'rgba(26,26,26,0)' : 'rgba(26,26,26,1)',
+        boxShadow: isDot ? '0 0 0 rgba(0,0,0,0)' : '0 8px 32px rgba(0,0,0,0.8)',
+      }}
+      transition={ISLAND_SPRING}
+      className="relative overflow-hidden rounded-full"
     >
-      <div className={`relative shrink-0 overflow-hidden rounded-full ${isDot ? 'h-0 w-0 opacity-0' : 'h-[62px] w-[62px]'}`}>
-        {!isDot && <NeonGhost />}
-      </div>
       <motion.div
         initial={false}
-        animate={{ width: textW, opacity: expanded ? 1 : 0 }}
-        transition={SPRING}
-        className="overflow-hidden"
+        animate={{
+          width: pillW,
+          scale: isDot ? REC_ICON / pillW : 1,
+          opacity: isDot ? 0 : 1,
+          filter: isDot ? 'blur(4px)' : 'blur(0px)',
+        }}
+        transition={{ ...ISLAND_SPRING, opacity: { duration: 0.25, delay: isDot ? 0.12 : 0 } }}
+        className={`absolute top-1/2 left-1/2 flex h-16 items-center ${reverse ? 'flex-row-reverse' : 'flex-row'}`}
+        style={{ x: '-50%', y: '-50%' }}
       >
-        <span className={`block whitespace-nowrap text-[15px] font-semibold text-white ${reverse ? 'pr-1 pl-3' : 'pr-4 pl-1'}`}>
-          {stopping ? '녹화종료' : '녹화시작'}
-        </span>
-      </motion.div>
-      {isDot && (
-        <motion.svg
-          viewBox="0 0 20 20"
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: [1, 0.15, 1, 0.5] }}
-          transition={{ duration: 0.9, times: [0, 0.3, 0.6, 1], ease: 'easeInOut' }}
+        <div className="relative h-[62px] w-[62px] shrink-0 overflow-hidden rounded-full">
+          <NeonGhost />
+        </div>
+        <motion.div
+          initial={false}
+          animate={{ width: showText ? TEXT_W : 0, opacity: showText ? 1 : 0 }}
+          transition={ISLAND_SPRING}
+          className="overflow-hidden"
         >
-          <circle cx="10" cy="10" r="9" fill="none" stroke="#e8453c" strokeWidth="1.8" />
-          <circle cx="10" cy="10" r="5" fill="#e8453c" />
-        </motion.svg>
-      )}
+          <span className={`block whitespace-nowrap text-[15px] font-semibold text-white ${reverse ? 'pr-1 pl-3' : 'pr-4 pl-1'}`}>
+            {stopping ? '녹화종료' : '녹화시작'}
+          </span>
+        </motion.div>
+      </motion.div>
+      <motion.svg
+        viewBox="0 0 20 20"
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 m-auto h-5 w-5"
+        initial={false}
+        animate={
+          recPhase === 'rec_active'
+            ? { opacity: [1, 0.15, 1, 0.5], scale: 1 }
+            : { opacity: isDot ? 1 : 0, scale: isDot ? 1 : 2.4 }
+        }
+        transition={
+          recPhase === 'rec_active'
+            ? { duration: 0.9, times: [0, 0.3, 0.6, 1], ease: 'easeInOut' }
+            : { ...ISLAND_SPRING, opacity: { duration: 0.2, delay: isDot ? 0.18 : 0 } }
+        }
+      >
+        <circle cx="10" cy="10" r="9" fill="none" stroke="#e8453c" strokeWidth="1.8" />
+        <circle cx="10" cy="10" r="5" fill="#e8453c" />
+      </motion.svg>
     </motion.div>
   )
 }
