@@ -171,7 +171,7 @@ function LobbyMenu({
 }) {
   const items = [
     {
-      label: '녹화시작',
+      label: '녹화 시작',
       onClick: onStartRec,
       icon: (
         <svg viewBox="0 0 20 20" aria-hidden="true" className="h-5 w-5">
@@ -207,7 +207,7 @@ function LobbyMenu({
               {item.icon}
             </span>
             <span
-              className={`pointer-events-none absolute top-1/2 -translate-y-1/2 rounded-full bg-black/75 px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${labelLeft ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}
+              className={`sub-button-label pointer-events-none absolute top-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${labelLeft ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}
             >
               {item.label}
             </span>
@@ -227,7 +227,7 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
   const isDot = recPhase === 'rec_active' || recPhase === 'rec_absorbing_start'
   const showText = recPhase !== 'idle' && recPhase !== 'rec_active'
   const stopping = recPhase !== 'rec_starting' && recPhase !== 'rec_absorbing_start'
-  const label = stopping ? '녹화종료' : '녹화시작'
+  const label = stopping ? '녹화 종료' : '녹화 시작'
   const labelRef = useRef<HTMLSpanElement>(null)
   const [labelW, setLabelW] = useState(56)
   useLayoutEffect(() => {
@@ -285,12 +285,12 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
         initial={false}
         animate={
           recPhase === 'rec_active'
-            ? { opacity: [1, 0.15, 1, 0.5], scale: 1 }
+            ? { opacity: [1, 0.15, 1, 0.15, 1, 0.15, 1, 0.5], scale: 1 }
             : { opacity: isDot ? 1 : 0, scale: isDot ? 1 : 2.4 }
         }
         transition={
           recPhase === 'rec_active'
-            ? { duration: 0.9, times: [0, 0.3, 0.6, 1], ease: 'easeInOut' }
+            ? { duration: 2.1, times: [0, 0.14, 0.28, 0.42, 0.56, 0.7, 0.84, 1], ease: 'easeInOut' }
             : { ...ISLAND_SPRING, opacity: { duration: 0.2, delay: isDot ? 0.18 : 0 } }
         }
       >
@@ -340,7 +340,7 @@ function FlipFace({
         </button>
       </motion.div>
       <span
-        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 rounded-full bg-black/75 px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap text-white transition-opacity duration-150 ${flipped ? 'opacity-100' : 'opacity-0'} ${reverse ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}
+        className={`sub-button-label pointer-events-none absolute top-1/2 -translate-y-1/2 transition-opacity duration-150 ${flipped ? 'opacity-100' : 'opacity-0'} ${reverse ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}
       >
         클립 보기
       </span>

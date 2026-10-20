@@ -57,6 +57,25 @@ body {
   transform: translateY(0.5px);
 }
 
+.sub-button-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background-color: rgba(26, 26, 30, 0.9);
+  backdrop-filter: blur(8px);
+  font-family: 'SUIT Variable', 'SUIT', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 @keyframes rec-pulse {
   0%,
   100% {
