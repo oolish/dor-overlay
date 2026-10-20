@@ -1,10 +1,10 @@
-import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion'
-import { House, LayoutPanelLeft, Sparkles } from 'lucide-react'
+import { AnimatePresence, motion, useMotionValue } from 'framer-motion'
+import { Sparkles } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { NeonGhost } from './NeonGhost.tsx'
 import { anchorPoint, cornerStyle, nearestCorner } from '../overlay/corners.ts'
 import type { Corner, GamePhase, RecPhase } from '../overlay/types.ts'
-import { CORNERS, SPRING } from '../overlay/types.ts'
+import { SPRING } from '../overlay/types.ts'
 
 type Props = {
   gamePhase: GamePhase
@@ -26,11 +26,29 @@ const FAB_SURFACE = 'bg-[#1a1a1a] shadow-[0_8px_32px_rgba(0,0,0,0.8)]'
 const MENU_SURFACE = 'bg-[#3a3b41]/90 shadow-[0_6px_20px_rgba(0,0,0,0.5)] backdrop-blur-md'
 const FAB_PRESS = 'transition-transform duration-200 hover:scale-105 active:scale-95'
 
-const SLOT: Record<Corner, string> = {
-  'top-left': 'top-6 left-6',
-  'top-right': 'top-6 right-6',
-  'bottom-left': 'bottom-6 left-6',
-  'bottom-right': 'bottom-6 right-6',
+const OFFSET_KEY = 'dor_offset'
+
+function HomeIcon({ size }: { size: number }) {
+  return <img src="/icon-home.png" alt="" aria-hidden="true" draggable={false} style={{ height: size, width: 'auto' }} />
+}
+
+function ClipsIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="17" height="17" rx="1.5" stroke="currentColor" strokeWidth="2.6" />
+      <path d="M10.5 3.5v17M10.5 12h10" stroke="currentColor" strokeWidth="2.6" />
+    </svg>
+  )
+}
+
+function readOffset() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(OFFSET_KEY) ?? 'null') as { x: number; y: number } | null
+    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) return saved
+  } catch {
+    /* ignore */
+  }
+  return { x: 0, y: 0 }
 }
 
 export function OverlayWidget({
@@ -46,12 +64,11 @@ export function OverlayWidget({
   onHome,
 }: Props) {
   const shellRef = useRef<HTMLDivElement>(null)
-  const x = useMotionValue(0)
-  const y = useMotionValue(0)
-  const snap = useRef<{ dx: number; dy: number } | null>(null)
+  const [initialOffset] = useState(readOffset)
+  const x = useMotionValue(initialOffset.x)
+  const y = useMotionValue(initialOffset.y)
   const suppressClick = useRef(false)
   const [dragging, setDragging] = useState(false)
-  const [hint, setHint] = useState<Corner>(corner)
   const [hot, setHot] = useState(false)
   const [autoFlipped, setAutoFlipped] = useState(false)
 
@@ -69,23 +86,8 @@ export function OverlayWidget({
     return () => window.clearTimeout(id)
   }, [autoFlipToken])
 
-  useEffect(() => {
-    const request = snap.current
-    if (!request) return
-    snap.current = null
-    void animate(x, 0, SPRING)
-    void animate(y, 0, SPRING)
-  }, [corner, x, y])
-
   return (
     <>
-      {dragging &&
-        CORNERS.map((slot) => (
-          <div
-            key={slot}
-            className={`pointer-events-none fixed z-30 h-16 w-16 rounded-full border border-dashed transition-colors ${SLOT[slot]} ${hint === slot ? 'border-white bg-white/15' : 'border-white/40'}`}
-          />
-        ))}
       <motion.div
         ref={shellRef}
         drag={canDrag}
@@ -95,16 +97,8 @@ export function OverlayWidget({
         role="button"
         aria-label="도르 위젯"
         tabIndex={0}
-        className={`touch-none ${canDrag ? 'cursor-grab active:cursor-grabbing' : ''} ${hidden ? 'pointer-events-none' : ''}`}
-        onDragStart={() => {
-          setDragging(true)
-          setHint(corner)
-        }}
-        onDrag={() => {
-          const rect = shellRef.current?.getBoundingClientRect()
-          if (!rect) return
-          setHint(nearestCorner(rect.left + rect.width / 2, rect.top + rect.height / 2))
-        }}
+        className={`touch-none ${showFlip ? 'cursor-pointer' : canDrag ? 'cursor-grab active:cursor-grabbing' : ''} ${hidden ? 'pointer-events-none' : ''}`}
+        onDragStart={() => setDragging(true)}
         onDragEnd={(_, info) => {
           setDragging(false)
           if (Math.hypot(info.offset.x, info.offset.y) > 6) suppressClick.current = true
@@ -112,9 +106,14 @@ export function OverlayWidget({
           if (!rect) return
           const next = nearestCorner(rect.left + rect.width / 2, rect.top + rect.height / 2)
           const target = anchorPoint(next, rect.width, rect.height)
-          x.set(rect.left - target.left)
-          y.set(rect.top - target.top)
-          snap.current = { dx: rect.left - target.left, dy: rect.top - target.top }
+          const offset = { x: rect.left - target.left, y: rect.top - target.top }
+          x.set(offset.x)
+          y.set(offset.y)
+          try {
+            localStorage.setItem(OFFSET_KEY, JSON.stringify(offset))
+          } catch {
+            /* ignore */
+          }
           onCorner(next)
         }}
         onPointerEnter={() => setHot(true)}
@@ -144,7 +143,20 @@ export function OverlayWidget({
                 }}
               />
             ) : (
-              <Island recPhase={recPhase} reverse={reverse} />
+              <div
+                role={recPhase === 'rec_active' ? 'button' : undefined}
+                aria-label={recPhase === 'rec_active' ? '녹화 종료' : undefined}
+                className={recPhase === 'rec_active' ? 'group/dot cursor-pointer' : undefined}
+                onClick={() => {
+                  if (suppressClick.current) {
+                    suppressClick.current = false
+                    return
+                  }
+                  if (recPhase === 'rec_active') onStartRec()
+                }}
+              >
+                <Island recPhase={recPhase} reverse={reverse} />
+              </div>
             )}
           </div>
           <AnimatePresence>
@@ -180,7 +192,7 @@ function LobbyMenu({
         </svg>
       ),
     },
-    { label: '홈', onClick: onHome, icon: <House size={20} strokeWidth={2.2} /> },
+    { label: '홈', onClick: onHome, icon: <HomeIcon size={26} /> },
   ]
   const ordered = above ? [...items].reverse() : items
 
@@ -218,15 +230,48 @@ function LobbyMenu({
   )
 }
 
-const ISLAND_SPRING = { type: 'spring' as const, bounce: 0.22, duration: 0.55 }
+const ISLAND_SPRING = { type: 'spring' as const, bounce: 0.22, duration: 0.5 }
+const SWAP_DELAY_MS = 500
+const GHOST_GROW_DELAY_MS = 600
+const PILL_BLINK_S = 1.4
+const PILL_BLINK_TIMES = [0, 0.143, 0.357, 0.571, 0.786, 1]
 const PILL_BG = '26,26,30'
 const TEXT_GAP = 8
 const TEXT_EDGE = 16
 
 function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean }) {
-  const isDot = recPhase === 'rec_active' || recPhase === 'rec_absorbing_start'
-  const showText = recPhase !== 'idle' && recPhase !== 'rec_active'
-  const stopping = recPhase !== 'rec_starting' && recPhase !== 'rec_absorbing_start'
+  const starting = recPhase === 'rec_starting' || recPhase === 'rec_absorbing_start'
+  const stopping = !starting
+  const [swapped, setSwapped] = useState(false)
+  const [grown, setGrown] = useState(false)
+  useEffect(() => {
+    if (recPhase === 'rec_starting') {
+      const id = window.setTimeout(() => setSwapped(true), SWAP_DELAY_MS)
+      return () => window.clearTimeout(id)
+    }
+    if (recPhase !== 'rec_absorbing_start') setSwapped(false)
+  }, [recPhase])
+  const [unflipped, setUnflipped] = useState(false)
+  useEffect(() => {
+    if (recPhase === 'rec_absorbing_end') {
+      const flipId = window.setTimeout(() => setUnflipped(true), 60)
+      const growId = window.setTimeout(() => setGrown(true), GHOST_GROW_DELAY_MS)
+      return () => {
+        window.clearTimeout(flipId)
+        window.clearTimeout(growId)
+      }
+    }
+    if (recPhase !== 'rec_stopping') {
+      setGrown(false)
+      setUnflipped(false)
+    }
+  }, [recPhase])
+  const stopEntry = recPhase === 'rec_absorbing_end'
+  const recFace = swapped || (stopEntry && !unflipped)
+  const contentHidden = recPhase === 'rec_active' || recPhase === 'rec_absorbing_start'
+  const tinyGhost = recPhase === 'rec_absorbing_end' && !grown
+  const isDot = contentHidden || tinyGhost
+  const showText = recPhase === 'rec_starting' || recPhase === 'rec_absorbing_start' || recPhase === 'rec_stopping'
   const label = stopping ? '녹화 종료' : '녹화 시작'
   const labelRef = useRef<HTMLSpanElement>(null)
   const [labelW, setLabelW] = useState(56)
@@ -245,8 +290,8 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
       animate={{
         width: box,
         height: isDot ? REC_ICON : FAB,
-        backgroundColor: `rgba(${PILL_BG},${isDot ? 0 : 1})`,
-        boxShadow: isDot ? '0 0 0 rgba(0,0,0,0)' : '0 8px 32px rgba(0,0,0,0.8)',
+        backgroundColor: `rgba(${PILL_BG},${contentHidden ? 0 : 1})`,
+        boxShadow: contentHidden ? '0 0 0 rgba(0,0,0,0)' : '0 8px 32px rgba(0,0,0,0.8)',
       }}
       transition={ISLAND_SPRING}
       className="relative overflow-hidden rounded-full"
@@ -256,15 +301,47 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
         animate={{
           width: pillW,
           scale: isDot ? REC_ICON / pillW : 1,
-          opacity: isDot ? 0 : 1,
-          filter: isDot ? 'blur(4px)' : 'blur(0px)',
+          opacity: contentHidden ? 0 : 1,
+          filter: contentHidden ? 'blur(4px)' : 'blur(0px)',
         }}
-        transition={{ ...ISLAND_SPRING, opacity: { duration: 0.25, delay: isDot ? 0.12 : 0 } }}
+        transition={
+          stopEntry
+            ? { ...ISLAND_SPRING, opacity: { duration: 0 }, filter: { duration: 0 } }
+            : { ...ISLAND_SPRING, opacity: { duration: 0.25, delay: contentHidden ? 0.12 : 0 } }
+        }
         className={`absolute top-1/2 left-1/2 flex h-16 items-center ${reverse ? 'flex-row-reverse' : 'flex-row'}`}
         style={{ x: '-50%', y: '-50%' }}
       >
-        <div className="relative h-[62px] w-[62px] shrink-0 overflow-hidden rounded-full">
-          <NeonGhost />
+        <div className="relative h-[62px] w-[62px] shrink-0" style={{ perspective: 400 }}>
+          <motion.div
+            className="relative h-full w-full"
+            initial={false}
+            animate={{ rotateY: recFace ? 180 : 0 }}
+            transition={
+              swapped || (stopEntry && unflipped) ? { type: 'spring', bounce: 0.25, duration: 0.6 } : { duration: 0 }
+            }
+            style={{ transformStyle: 'preserve-3d' }}
+          >
+            <div className="absolute inset-0 overflow-hidden rounded-full" style={{ backfaceVisibility: 'hidden' }}>
+              <NeonGhost />
+            </div>
+            <div
+              className="absolute inset-0 grid place-items-center"
+              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+            >
+              <motion.svg
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+                className={stopEntry ? 'h-[62px] w-[62px]' : 'h-7 w-7'}
+                initial={false}
+                animate={{ opacity: swapped ? [1, 1, 0.25, 1, 0.25, 1] : stopEntry ? 0.5 : 1 }}
+                transition={swapped ? { duration: PILL_BLINK_S, times: PILL_BLINK_TIMES, ease: 'easeInOut' } : { duration: 0 }}
+              >
+                <circle cx="10" cy="10" r="9" fill="none" stroke="#e8453c" strokeWidth="1.8" />
+                <circle cx="10" cy="10" r="5" fill="#e8453c" />
+              </motion.svg>
+            </div>
+          </motion.div>
         </div>
         <motion.div
           initial={false}
@@ -281,21 +358,34 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
       <motion.svg
         viewBox="0 0 20 20"
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 m-auto h-5 w-5"
+        className={`pointer-events-none absolute inset-0 m-auto h-5 w-5 ${recPhase === 'rec_active' ? 'group-hover/dot:opacity-100!' : ''}`}
         initial={false}
         animate={
           recPhase === 'rec_active'
-            ? { opacity: [1, 0.15, 1, 0.15, 1, 0.15, 1, 0.5], scale: 1 }
-            : { opacity: isDot ? 1 : 0, scale: isDot ? 1 : 2.4 }
+            ? { opacity: 0.5, scale: 1 }
+            : { opacity: contentHidden ? 1 : 0, scale: contentHidden || tinyGhost ? 1 : 2.4 }
         }
         transition={
           recPhase === 'rec_active'
-            ? { duration: 2.1, times: [0, 0.14, 0.28, 0.42, 0.56, 0.7, 0.84, 1], ease: 'easeInOut' }
-            : { ...ISLAND_SPRING, opacity: { duration: 0.2, delay: isDot ? 0.18 : 0 } }
+            ? { duration: 0.8, ease: 'easeOut' }
+            : { ...ISLAND_SPRING, opacity: { duration: stopEntry ? 0 : 0.2, delay: contentHidden ? 0.18 : 0 } }
         }
       >
-        <circle cx="10" cy="10" r="9" fill="none" stroke="#e8453c" strokeWidth="1.8" />
-        <circle cx="10" cy="10" r="5" fill="#e8453c" />
+        <g className={recPhase === 'rec_active' ? 'transition-opacity duration-150 group-hover/dot:opacity-0' : ''}>
+          <circle cx="10" cy="10" r="9" fill="none" stroke="#e8453c" strokeWidth="1.8" />
+          <circle cx="10" cy="10" r="5" fill="#e8453c" />
+        </g>
+        {recPhase === 'rec_active' && (
+          <rect
+            x="3"
+            y="3"
+            width="14"
+            height="14"
+            rx="2.5"
+            fill="#e8453c"
+            className="opacity-0 transition-opacity duration-150 group-hover/dot:opacity-100"
+          />
+        )}
       </motion.svg>
     </motion.div>
   )
@@ -333,10 +423,10 @@ function FlipFace({
           type="button"
           onClick={onOpen}
           aria-label="클립 보기"
-          className={`absolute inset-0 grid place-items-center rounded-full text-white ${MENU_SURFACE}`}
+          className={`absolute inset-0 grid cursor-pointer place-items-center rounded-full text-white ${MENU_SURFACE}`}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
-          <LayoutPanelLeft size={22} strokeWidth={2.2} />
+          <ClipsIcon size={22} />
         </button>
       </motion.div>
       <span
@@ -346,9 +436,9 @@ function FlipFace({
       </span>
       {count > 0 && (
         <span
-          className={`absolute -top-2 z-10 flex items-center gap-0.5 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold text-black ${reverse ? '-left-2' : '-right-2'}`}
+          className={`absolute -top-2 z-10 flex items-center gap-0.5 rounded-full bg-linear-to-r from-[#8b82d6] to-[#e46f86] px-1.5 py-0.5 text-[11px] leading-[14px] font-bold text-white ${reverse ? '-left-2.5' : '-right-2.5'}`}
         >
-          <Sparkles size={10} />
+          <Sparkles size={11} />
           {count}
         </span>
       )}

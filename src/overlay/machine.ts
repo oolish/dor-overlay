@@ -132,8 +132,8 @@ export function useOverlayMachine() {
     if (gameRef.current === 'match_end') return
     clearTimers()
     setRecPhase('rec_starting')
-    timers.current.push(window.setTimeout(() => setRecPhase('rec_absorbing_start'), 1000))
-    timers.current.push(window.setTimeout(() => setRecPhase('rec_active'), 1550))
+    timers.current.push(window.setTimeout(() => setRecPhase('rec_absorbing_start'), 1950))
+    timers.current.push(window.setTimeout(() => setRecPhase('rec_active'), 2450))
   }, [clearTimers])
 
   const stopRec = useCallback(
@@ -142,8 +142,8 @@ export function useOverlayMachine() {
       clearTimers()
       pendingLand.current = landOn ?? null
       setRecPhase('rec_absorbing_end')
-      timers.current.push(window.setTimeout(() => setRecPhase('rec_stopping'), 550))
-      timers.current.push(window.setTimeout(finishStop, 1550))
+      timers.current.push(window.setTimeout(() => setRecPhase('rec_stopping'), 1150))
+      timers.current.push(window.setTimeout(finishStop, 2150))
     },
     [clearTimers, finishStop],
   )
