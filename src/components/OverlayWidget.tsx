@@ -1,6 +1,6 @@
 import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion'
 import { House, LayoutPanelLeft, Sparkles } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { NeonGhost } from './NeonGhost.tsx'
 import { anchorPoint, cornerStyle, nearestCorner } from '../overlay/corners.ts'
 import type { Corner, GamePhase, RecPhase } from '../overlay/types.ts'
@@ -219,13 +219,24 @@ function LobbyMenu({
 }
 
 const ISLAND_SPRING = { type: 'spring' as const, bounce: 0.22, duration: 0.55 }
-const TEXT_W = 104
+const PILL_BG = '26,26,30'
+const TEXT_GAP = 8
+const TEXT_EDGE = 16
 
 function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean }) {
   const isDot = recPhase === 'rec_active' || recPhase === 'rec_absorbing_start'
   const showText = recPhase !== 'idle' && recPhase !== 'rec_active'
   const stopping = recPhase !== 'rec_starting' && recPhase !== 'rec_absorbing_start'
-  const pillW = FAB + (showText ? TEXT_W : 0)
+  const label = stopping ? '녹화종료' : '녹화시작'
+  const labelRef = useRef<HTMLSpanElement>(null)
+  const [labelW, setLabelW] = useState(56)
+  useLayoutEffect(() => {
+    const measure = () => labelRef.current && setLabelW(Math.ceil(labelRef.current.scrollWidth))
+    measure()
+    void document.fonts?.ready.then(measure)
+  }, [label])
+  const textW = TEXT_GAP + labelW + TEXT_EDGE
+  const pillW = FAB + (showText ? textW : 0)
   const box = isDot ? REC_ICON : pillW
 
   return (
@@ -234,7 +245,7 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
       animate={{
         width: box,
         height: isDot ? REC_ICON : FAB,
-        backgroundColor: isDot ? 'rgba(26,26,26,0)' : 'rgba(26,26,26,1)',
+        backgroundColor: `rgba(${PILL_BG},${isDot ? 0 : 1})`,
         boxShadow: isDot ? '0 0 0 rgba(0,0,0,0)' : '0 8px 32px rgba(0,0,0,0.8)',
       }}
       transition={ISLAND_SPRING}
@@ -257,12 +268,13 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
         </div>
         <motion.div
           initial={false}
-          animate={{ width: showText ? TEXT_W : 0, opacity: showText ? 1 : 0 }}
+          animate={{ width: showText ? textW : 0, opacity: showText ? 1 : 0 }}
           transition={ISLAND_SPRING}
-          className="overflow-hidden"
+          className={`flex shrink-0 overflow-hidden ${reverse ? 'justify-end' : 'justify-start'}`}
+          style={reverse ? { paddingLeft: TEXT_EDGE, paddingRight: TEXT_GAP } : { paddingLeft: TEXT_GAP, paddingRight: TEXT_EDGE }}
         >
-          <span className={`block whitespace-nowrap text-[15px] font-semibold text-white ${reverse ? 'pr-1 pl-3' : 'pr-4 pl-1'}`}>
-            {stopping ? '녹화종료' : '녹화시작'}
+          <span ref={labelRef} className="record-status-text">
+            {label}
           </span>
         </motion.div>
       </motion.div>

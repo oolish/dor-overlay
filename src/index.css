@@ -43,6 +43,20 @@ body {
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
+.record-status-text {
+  display: block;
+  font-family: 'SUIT Variable', 'SUIT', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transform: translateY(0.5px);
+}
+
 @keyframes rec-pulse {
   0%,
   100% {
