@@ -19,9 +19,12 @@ export default function App() {
         recPhase={overlay.recPhase}
         corner={overlay.corner}
         badge={overlay.badge}
+        recCount={overlay.recCount}
         autoFlipToken={overlay.autoFlipToken}
         onCorner={overlay.chooseCorner}
         onOpenClips={overlay.openClips}
+        onStartRec={overlay.toggleRec}
+        onHome={overlay.openClips}
       />
       <DemoBar
         gamePhase={overlay.gamePhase}

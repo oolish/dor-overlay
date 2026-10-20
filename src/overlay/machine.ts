@@ -86,6 +86,7 @@ export function useOverlayMachine() {
   const [clipsOpen, setClipsOpen] = useState(false)
   const [autoFlipToken, setAutoFlipToken] = useState(0)
   const [matchSerial, setMatchSerial] = useState(0)
+  const [recCount, setRecCount] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
   const timers = useRef<number[]>([])
   const toastTimer = useRef<number | null>(null)
@@ -115,6 +116,7 @@ export function useOverlayMachine() {
     const land = pendingLand.current
     pendingLand.current = null
     setRecPhase('idle')
+    setRecCount((n) => n + 1)
     if (land === 'match_end') {
       setGamePhase('match_end')
       setBadge(true)
@@ -155,6 +157,7 @@ export function useOverlayMachine() {
   const enterIngame = useCallback(() => {
     if (isMorphing(recRef.current)) return
     if (flipTimer.current) window.clearTimeout(flipTimer.current)
+    if (gameRef.current === 'match_end') setRecCount(0)
     setClipsOpen(false)
     setBadge(false)
     setGamePhase('ingame')
@@ -175,6 +178,7 @@ export function useOverlayMachine() {
   const goLobby = useCallback(() => {
     if (isMorphing(recRef.current)) return
     if (flipTimer.current) window.clearTimeout(flipTimer.current)
+    if (gameRef.current === 'match_end') setRecCount(0)
     setClipsOpen(false)
     setBadge(false)
     setGamePhase('lobby')
@@ -231,6 +235,7 @@ export function useOverlayMachine() {
     clipsOpen,
     autoFlipToken,
     matchSerial,
+    recCount,
     locked: isMorphing(recPhase),
     toggleRec,
     enterIngame,
