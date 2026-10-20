@@ -293,13 +293,18 @@ function FlipFace({
         <button
           type="button"
           onClick={onOpen}
-          className={`absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full text-white ${MENU_SURFACE}`}
+          aria-label="클립 보기"
+          className={`absolute inset-0 grid place-items-center rounded-full text-white ${MENU_SURFACE}`}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
-          <LayoutPanelLeft size={18} strokeWidth={2.2} />
-          <span className="text-[10px] leading-none font-semibold whitespace-nowrap">클립 보기</span>
+          <LayoutPanelLeft size={22} strokeWidth={2.2} />
         </button>
       </motion.div>
+      <span
+        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 rounded-full bg-black/75 px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap text-white transition-opacity duration-150 ${flipped ? 'opacity-100' : 'opacity-0'} ${reverse ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}
+      >
+        클립 보기
+      </span>
       {count > 0 && (
         <span
           className={`absolute -top-2 z-10 flex items-center gap-0.5 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold text-black ${reverse ? '-left-2' : '-right-2'}`}
