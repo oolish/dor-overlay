@@ -15,8 +15,6 @@ const MAX_H_RATIO = 0.6
 const THUMB_SRC = '/gameplay.mp4'
 const THUMB_TIMES = [6, 18, 29, 41, 52]
 const KILL_TAGS = ['더블킬', '트리플킬', '헤드샷', '클러치', '연속 처치']
-const KDAS = ['6 / 5 / 4', '9 / 2 / 7', '3 / 4 / 11', '12 / 6 / 3', '5 / 1 / 8']
-
 type Props = {
   open: boolean
   fab: number
@@ -28,7 +26,6 @@ type Props = {
 
 export type MenuClip = {
   id: number
-  kda: string
   time: string
   tag: string
   thumbAt: number
@@ -42,7 +39,6 @@ export function GooeyClipsMenu({ open, fab, alignRight, above, count, onOpenClip
 
   const clips: MenuClip[] = Array.from({ length: count }, (_, i) => ({
     id: i + 1,
-    kda: KDAS[i % KDAS.length],
     time: i === count - 1 ? '방금 전' : `${(count - 1 - i) * 3 + 2}분 전`,
     tag: KILL_TAGS[i % KILL_TAGS.length],
     thumbAt: THUMB_TIMES[i % THUMB_TIMES.length],
@@ -143,7 +139,7 @@ export function GooeyClipsMenu({ open, fab, alignRight, above, count, onOpenClip
                   <span className="absolute inset-0 bg-linear-to-r from-[#1a1a1e] from-35% via-[#1a1a1e]/70 via-55% to-transparent" />
                   <span className="relative flex h-full flex-col justify-between p-3">
                     <span>
-                      <span className="clips-menu-title block">{clip.kda}</span>
+                      <span className="clips-menu-title block">비디오</span>
                       <span className="clips-menu-meta mt-1.5 block">{clip.time}</span>
                     </span>
                     <span className="flex gap-1.5">
