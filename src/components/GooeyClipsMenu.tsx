@@ -5,6 +5,7 @@ const POPUP_W = 320
 const POPUP_R = 24
 const GRAVITY_Y = 80
 const DURATION = 0.7
+const CLOSE_DURATION = 0.45
 const EASE = [0.7, 0, 0.2, 1] as const
 const BLOB = '#3a3b41'
 const PAD = 20
@@ -66,6 +67,26 @@ export function GooeyClipsMenu({ open, fab, alignRight, above, count, onOpenClip
     : { x: 0, y: 0, width: fab, height: fab, r: fab / 2 }
   const morph = { duration: DURATION, ease: EASE }
 
+  const popupY = above ? fab / 2 - GRAVITY_Y - h : fab / 2 + GRAVITY_Y
+  const neckW = fab
+  const neckX = fab / 2 - neckW / 2
+  const neckTip = above ? popupY + h - h * 0.25 : popupY + h * 0.25
+  const neckY = above ? neckTip : fab / 2
+  const neckH = Math.abs(neckTip - fab / 2)
+  const blobAnimate = open
+    ? { x: shape.x, y: shape.y, width: shape.width, height: shape.height, rx: shape.r, ry: shape.r }
+    : {
+        x: [null, neckX, 0],
+        y: [null, neckY, 0],
+        width: [null, neckW, fab],
+        height: [null, neckH, fab],
+        rx: [null, neckW / 2, fab / 2],
+        ry: [null, neckW / 2, fab / 2],
+      }
+  const blobTransition = open
+    ? morph
+    : { duration: CLOSE_DURATION, times: [0, 0.5, 1], ease: [EASE, EASE] }
+
   return (
     <>
       <svg className="pointer-events-none absolute top-0 left-0 z-0 overflow-visible" width={1} height={1} aria-hidden="true">
@@ -80,8 +101,8 @@ export function GooeyClipsMenu({ open, fab, alignRight, above, count, onOpenClip
           <circle cx={fab / 2} cy={fab / 2} r={fab / 2} fill={BLOB} />
           <motion.rect
             initial={false}
-            animate={{ x: shape.x, y: shape.y, width: shape.width, height: shape.height, rx: shape.r, ry: shape.r }}
-            transition={morph}
+            animate={blobAnimate}
+            transition={blobTransition}
             fill={BLOB}
           />
         </g>
@@ -107,7 +128,7 @@ export function GooeyClipsMenu({ open, fab, alignRight, above, count, onOpenClip
           transition={
             open
               ? { duration: DURATION * 0.4, ease: 'easeIn', delay: DURATION * 0.3 }
-              : { duration: DURATION * 0.3, ease: 'easeOut' }
+              : { duration: CLOSE_DURATION * 0.3, ease: 'easeOut' }
           }
           className="clips-menu box-border flex flex-col text-white"
           style={{ width: POPUP_W, height: h, padding: PAD }}
