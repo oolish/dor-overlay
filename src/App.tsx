@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useMemo } from 'react'
-import { buildLibrary } from './clips/library.ts'
+import { useMemo, useState } from 'react'
+import { buildLibrary, type ClipItem } from './clips/library.ts'
 import { DemoBar } from './components/DemoBar.tsx'
 import { DorPopup } from './components/DorPopup.tsx'
 import { GameVideo } from './components/GameVideo.tsx'
@@ -10,6 +10,7 @@ import { useOverlayMachine } from './overlay/machine.ts'
 export default function App() {
   const overlay = useOverlayMachine()
   const clips = useMemo(() => buildLibrary(overlay.matchSerial), [overlay.matchSerial])
+  const [focusClip, setFocusClip] = useState<ClipItem | null>(null)
 
   return (
     <main className="relative h-full overflow-hidden">
@@ -22,9 +23,29 @@ export default function App() {
         recCount={overlay.recCount}
         autoFlipToken={overlay.autoFlipToken}
         onCorner={overlay.chooseCorner}
-        onOpenClips={overlay.openClips}
+        onOpenClips={() => {
+          setFocusClip(null)
+          overlay.openClips()
+        }}
+        onOpenClipDetail={(clip) => {
+          setFocusClip({
+            id: `match-${overlay.matchSerial}-${clip.id}`,
+            timeLabel: clip.time,
+            game: '나이트 런',
+            meta: `전체 영상 1 · 클립 ${clip.id}`,
+            favorite: false,
+            scene: 'duel',
+            fresh: true,
+            src: '/gameplay.mp4',
+            startAt: clip.thumbAt,
+          })
+          overlay.openClips()
+        }}
         onStartRec={overlay.toggleRec}
-        onHome={overlay.openClips}
+        onHome={() => {
+          setFocusClip(null)
+          overlay.openClips()
+        }}
       />
       <DemoBar
         gamePhase={overlay.gamePhase}
@@ -38,6 +59,7 @@ export default function App() {
       <DorPopup
         open={overlay.clipsOpen}
         clips={clips}
+        focusClip={focusClip}
         matchSerial={overlay.matchSerial}
         recPhase={overlay.recPhase}
         onClose={overlay.closeClips}

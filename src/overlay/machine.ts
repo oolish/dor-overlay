@@ -26,7 +26,7 @@ function readCorner(): Corner {
   } catch {
     /* private mode */
   }
-  return 'top-right'
+  return 'top-left'
 }
 
 export function nearestCorner(px: number, py: number): Corner {

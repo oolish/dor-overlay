@@ -8,6 +8,8 @@ export type ClipItem = {
   favorite: boolean
   scene: SceneId
   fresh?: boolean
+  src?: string
+  startAt?: number
 }
 
 const BASE: ClipItem[] = [

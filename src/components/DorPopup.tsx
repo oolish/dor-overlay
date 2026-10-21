@@ -26,6 +26,7 @@ type Tab = 'all' | 'fav' | 'video'
 type Props = {
   open: boolean
   clips: ClipItem[]
+  focusClip: ClipItem | null
   matchSerial: number
   recPhase: RecPhase
   onClose: () => void
@@ -36,6 +37,7 @@ type Props = {
 export function DorPopup({
   open,
   clips,
+  focusClip,
   matchSerial,
   recPhase,
   onClose,
@@ -53,7 +55,7 @@ export function DorPopup({
 
   if (open !== seenOpen) {
     setSeenOpen(open)
-    setActiveId(null)
+    setActiveId(open && focusClip ? focusClip.id : null)
     setSelecting(false)
     setSelected([])
   }
@@ -70,7 +72,8 @@ export function DorPopup({
 
   if (!open) return null
 
-  const active = clips.find((clip) => clip.id === activeId) ?? null
+  const active =
+    (focusClip && focusClip.id === activeId ? focusClip : clips.find((clip) => clip.id === activeId)) ?? null
   const recording =
     recPhase === 'rec_active' || recPhase === 'rec_starting' || recPhase === 'rec_absorbing_start'
 
@@ -327,15 +330,25 @@ function Player({
   onShare: () => void
   onCopy: () => void
 }) {
-  const src = clip.fresh ? '/match-end.mp4' : '/gameplay.mp4'
+  const src = clip.src ?? (clip.fresh ? '/match-end.mp4' : '/gameplay.mp4')
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
       <button type="button" onClick={onBack} className="flex w-fit items-center gap-1 text-sm text-white/70">
         <ChevronLeft size={16} />
         전체
       </button>
       <div className="mt-3 overflow-hidden rounded-xl bg-black">
-        <video key={clip.id} src={src} controls autoPlay playsInline className="aspect-video w-full bg-black" />
+        <video
+          key={clip.id}
+          src={src}
+          controls
+          autoPlay
+          playsInline
+          className="aspect-video w-full bg-black"
+          onLoadedMetadata={(event) => {
+            if (clip.startAt) event.currentTarget.currentTime = clip.startAt
+          }}
+        />
       </div>
       <div className="mt-4 flex items-end justify-between gap-4">
         <div>
@@ -351,6 +364,9 @@ function Player({
           </button>
         </div>
       </div>
+      <p className="mt-5 text-[13px] leading-relaxed font-medium text-[#facc15]">
+        *이 창은 실제 DOR의 메뉴(녹화된 해당 비디오 상세페이지)로 연결되며 placeholder로 사용한 샘플 화면입니다.
+      </p>
     </div>
   )
 }

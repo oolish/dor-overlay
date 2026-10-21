@@ -1,6 +1,7 @@
-import { AnimatePresence, motion, useMotionValue } from 'framer-motion'
+import { motion, useMotionValue } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { GooeyClipsMenu, type MenuClip } from './GooeyClipsMenu.tsx'
 import { NeonGhost } from './NeonGhost.tsx'
 import { anchorPoint, cornerStyle, nearestCorner } from '../overlay/corners.ts'
 import type { Corner, GamePhase, RecPhase } from '../overlay/types.ts'
@@ -15,6 +16,7 @@ type Props = {
   autoFlipToken: number
   onCorner: (corner: Corner) => void
   onOpenClips: () => void
+  onOpenClipDetail: (clip: MenuClip) => void
   onStartRec: () => void
   onHome: () => void
 }
@@ -22,6 +24,18 @@ type Props = {
 const FAB = 64
 const REC_ICON = 20
 const AUTO_FLIP_HOLD_MS = 2400
+const NOTICE_DELAY_MS = 400
+const NOTICE_HOLD_MS = 2200
+const REST_DIM_DELAY_MS = 1000
+const MENU_CLOSE_DELAY_MS = 300
+const LOBBY_CLOSE_DELAY_MS = 200
+const SUB = 48
+const GOO_GAP = 12
+const GOO_PAD = 200
+const GOO_DURATION_S = 0.6
+const GOO_STAGGER_S = 0.05
+const GOO_EASE = [0.7, 0, 0.2, 1] as const
+const GOO_SUB_COLOR = 'rgb(58,59,65)'
 const FAB_SURFACE = 'bg-[#1a1a1a] shadow-[0_8px_32px_rgba(0,0,0,0.8)]'
 const MENU_SURFACE = 'bg-[#3a3b41]/90 shadow-[0_6px_20px_rgba(0,0,0,0.5)] backdrop-blur-md'
 const FAB_PRESS = 'transition-transform duration-200 hover:scale-105 active:scale-95'
@@ -48,7 +62,7 @@ function readOffset() {
   } catch {
     /* ignore */
   }
-  return { x: 0, y: 0 }
+  return { x: 0, y: Math.max(0, Math.round(window.innerHeight / 3 - 24 - FAB / 2)) }
 }
 
 export function OverlayWidget({
@@ -60,6 +74,7 @@ export function OverlayWidget({
   autoFlipToken,
   onCorner,
   onOpenClips,
+  onOpenClipDetail,
   onStartRec,
   onHome,
 }: Props) {
@@ -70,6 +85,7 @@ export function OverlayWidget({
   const suppressClick = useRef(false)
   const [dragging, setDragging] = useState(false)
   const [hot, setHot] = useState(false)
+  const hotTimer = useRef<number | undefined>(undefined)
   const [autoFlipped, setAutoFlipped] = useState(false)
 
   const hidden = gamePhase === 'ingame' && recPhase === 'idle'
@@ -85,6 +101,32 @@ export function OverlayWidget({
     const id = window.setTimeout(() => setAutoFlipped(false), AUTO_FLIP_HOLD_MS)
     return () => window.clearTimeout(id)
   }, [autoFlipToken])
+
+  const [notice, setNotice] = useState<string | null>(null)
+  useEffect(() => {
+    const show = window.setTimeout(() => setNotice('블랙박스 작동 중'), NOTICE_DELAY_MS)
+    const hide = window.setTimeout(() => setNotice(null), NOTICE_DELAY_MS + NOTICE_HOLD_MS)
+    return () => {
+      window.clearTimeout(show)
+      window.clearTimeout(hide)
+    }
+  }, [])
+
+  const atRest =
+    recPhase === 'idle' &&
+    notice === null &&
+    !hot &&
+    !dragging &&
+    (gamePhase === 'lobby' || (gamePhase === 'match_end' && !autoFlipped))
+  const [dimmed, setDimmed] = useState(false)
+  useEffect(() => {
+    if (!atRest) {
+      setDimmed(false)
+      return
+    }
+    const id = window.setTimeout(() => setDimmed(true), REST_DIM_DELAY_MS)
+    return () => window.clearTimeout(id)
+  }, [atRest, gamePhase])
 
   return (
     <>
@@ -116,19 +158,38 @@ export function OverlayWidget({
           }
           onCorner(next)
         }}
-        onPointerEnter={() => setHot(true)}
-        onPointerLeave={() => setHot(false)}
+        onPointerEnter={() => {
+          window.clearTimeout(hotTimer.current)
+          setHot(true)
+        }}
+        onPointerLeave={() => {
+          window.clearTimeout(hotTimer.current)
+          const delay = showFlip ? MENU_CLOSE_DELAY_MS : gamePhase === 'lobby' && recPhase === 'idle' ? LOBBY_CLOSE_DELAY_MS : 0
+          if (delay) hotTimer.current = window.setTimeout(() => setHot(false), delay)
+          else setHot(false)
+        }}
       >
         <motion.div
+          className="relative"
           initial={false}
           animate={{
             x: hidden ? (reverse ? 180 : -180) : 0,
-            opacity: hidden ? 0 : 1,
+            opacity: hidden ? 0 : dimmed ? 0.5 : 1,
             scale: hidden ? 0.86 : 1,
           }}
-          transition={SPRING}
+          transition={{ ...SPRING, opacity: { duration: dimmed ? 0.6 : 0.2 } }}
         >
-          <div className={FAB_PRESS}>
+          {showFlip && (
+            <GooeyClipsMenu
+              open={hot && !dragging}
+              fab={FAB}
+              alignRight={reverse}
+              above={corner.startsWith('bottom')}
+              count={recCount}
+              onOpenClip={onOpenClipDetail}
+            />
+          )}
+          <div className={`relative z-10 ${FAB_PRESS}`}>
             {showFlip ? (
               <FlipFace
                 flipped={flipped}
@@ -155,15 +216,19 @@ export function OverlayWidget({
                   if (recPhase === 'rec_active') onStartRec()
                 }}
               >
-                <Island recPhase={recPhase} reverse={reverse} />
+                <Island recPhase={recPhase} reverse={reverse} notice={notice} />
               </div>
             )}
           </div>
-          <AnimatePresence>
-            {hot && !dragging && gamePhase === 'lobby' && recPhase === 'idle' && (
-              <LobbyMenu above={corner.startsWith('bottom')} labelLeft={reverse} onStartRec={onStartRec} onHome={onHome} />
-            )}
-          </AnimatePresence>
+          {gamePhase === 'lobby' && recPhase === 'idle' && (
+            <LobbyMenu
+              open={hot && !dragging && notice === null}
+              above={corner.startsWith('bottom')}
+              labelLeft={reverse}
+              onStartRec={onStartRec}
+              onHome={onHome}
+            />
+          )}
         </motion.div>
       </motion.div>
     </>
@@ -171,11 +236,13 @@ export function OverlayWidget({
 }
 
 function LobbyMenu({
+  open,
   above,
   labelLeft,
   onStartRec,
   onHome,
 }: {
+  open: boolean
   above: boolean
   labelLeft: boolean
   onStartRec: () => void
@@ -194,27 +261,65 @@ function LobbyMenu({
     },
     { label: '홈', onClick: onHome, icon: <HomeIcon size={26} /> },
   ]
-  const ordered = above ? [...items].reverse() : items
+  const filterId = `lobby-goo-${useId().replace(/:/g, '')}`
+  const dir = above ? -1 : 1
+  const offsetOf = (step: number) => dir * (FAB / 2 + GOO_GAP + SUB / 2 + step * (SUB + GOO_GAP))
+  const delayOf = (step: number) => (open ? (step === 0 ? GOO_STAGGER_S : 0) : step === 0 ? 0 : GOO_STAGGER_S)
+  const slide = (step: number) => ({ duration: GOO_DURATION_S, ease: GOO_EASE, delay: delayOf(step) })
+  const reach = FAB / 2 + GOO_GAP + items.length * (SUB + GOO_GAP)
 
   return (
-    <div
-      className={`absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-3 ${above ? 'bottom-full pb-3' : 'top-full pt-3'}`}
-      onPointerDown={(event) => event.stopPropagation()}
-    >
-      {ordered.map((item) => {
-        const step = items.indexOf(item)
-        return (
-          <motion.button
+    <div className="absolute top-0 left-0 h-16 w-16" onPointerDown={(event) => event.stopPropagation()}>
+      <svg className="absolute h-0 w-0" aria-hidden="true">
+        <defs>
+          <filter id={filterId}>
+            <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11" result="goo" />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
+      <div
+        className="pointer-events-none absolute"
+        style={{ left: -GOO_PAD, top: -GOO_PAD, width: FAB + GOO_PAD * 2, height: FAB + GOO_PAD * 2, filter: `url(#${filterId})` }}
+      >
+        <div className="absolute rounded-full" style={{ left: GOO_PAD, top: GOO_PAD, width: FAB, height: FAB, backgroundColor: `rgb(${PILL_BG})` }} />
+        {items.map((item, step) => (
+          <motion.div
             key={item.label}
-            type="button"
-            onClick={item.onClick}
-            initial={{ opacity: 0, y: above ? 10 : -10, scale: 0.85 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: above ? 10 : -10, scale: 0.85, transition: { duration: 0.12 } }}
-            transition={{ ...SPRING, delay: step * 0.07 }}
-            aria-label={item.label}
-            className="group relative cursor-pointer"
-          >
+            className="absolute rounded-full"
+            style={{
+              left: GOO_PAD + (FAB - SUB) / 2,
+              top: GOO_PAD + (FAB - SUB) / 2,
+              width: SUB,
+              height: SUB,
+              backgroundColor: GOO_SUB_COLOR,
+            }}
+            initial={false}
+            animate={{ y: open ? offsetOf(step) : 0 }}
+            transition={slide(step)}
+          />
+        ))}
+      </div>
+      {open && (
+        <div
+          className="absolute left-0 w-16"
+          style={above ? { bottom: FAB / 2, height: reach } : { top: FAB / 2, height: reach }}
+        />
+      )}
+      {items.map((item, step) => (
+        <motion.button
+          key={item.label}
+          type="button"
+          onClick={item.onClick}
+          initial={false}
+          animate={{ y: open ? offsetOf(step) : 0, opacity: open ? 1 : 0 }}
+          transition={{ ...slide(step), opacity: { duration: GOO_DURATION_S * 0.5, delay: delayOf(step) } }}
+          aria-label={item.label}
+          tabIndex={open ? 0 : -1}
+          className={`group absolute cursor-pointer ${open ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          style={{ left: (FAB - SUB) / 2, top: (FAB - SUB) / 2 }}
+        >
             <span className={`grid h-12 w-12 place-items-center rounded-full text-white transition-transform duration-200 group-hover:scale-105 ${MENU_SURFACE}`}>
               {item.icon}
             </span>
@@ -223,9 +328,8 @@ function LobbyMenu({
             >
               {item.label}
             </span>
-          </motion.button>
-        )
-      })}
+        </motion.button>
+      ))}
     </div>
   )
 }
@@ -239,9 +343,9 @@ const PILL_BG = '26,26,30'
 const TEXT_GAP = 8
 const TEXT_EDGE = 16
 
-function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean }) {
+function Island({ recPhase, reverse, notice }: { recPhase: RecPhase; reverse: boolean; notice: string | null }) {
+  const noticeOn = notice !== null && recPhase === 'idle'
   const starting = recPhase === 'rec_starting' || recPhase === 'rec_absorbing_start'
-  const stopping = !starting
   const [swapped, setSwapped] = useState(false)
   const [grown, setGrown] = useState(false)
   useEffect(() => {
@@ -271,8 +375,11 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
   const contentHidden = recPhase === 'rec_active' || recPhase === 'rec_absorbing_start'
   const tinyGhost = recPhase === 'rec_absorbing_end' && !grown
   const isDot = contentHidden || tinyGhost
-  const showText = recPhase === 'rec_starting' || recPhase === 'rec_absorbing_start' || recPhase === 'rec_stopping'
-  const label = stopping ? '녹화 종료' : '녹화 시작'
+  const showText =
+    noticeOn || recPhase === 'rec_starting' || recPhase === 'rec_absorbing_start' || recPhase === 'rec_stopping'
+  const activeLabel = noticeOn ? notice : starting ? '녹화 시작' : recPhase === 'idle' ? null : '녹화 종료'
+  const [label, setLabel] = useState(activeLabel ?? '녹화 시작')
+  if (activeLabel && activeLabel !== label) setLabel(activeLabel)
   const labelRef = useRef<HTMLSpanElement>(null)
   const [labelW, setLabelW] = useState(56)
   useLayoutEffect(() => {
@@ -312,7 +419,7 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
         className={`absolute top-1/2 left-1/2 flex h-16 items-center ${reverse ? 'flex-row-reverse' : 'flex-row'}`}
         style={{ x: '-50%', y: '-50%' }}
       >
-        <div className="relative h-[62px] w-[62px] shrink-0" style={{ perspective: 400 }}>
+        <div className="relative h-16 w-16 shrink-0" style={{ perspective: 400 }}>
           <motion.div
             className="relative h-full w-full"
             initial={false}
@@ -332,7 +439,7 @@ function Island({ recPhase, reverse }: { recPhase: RecPhase; reverse: boolean })
               <motion.svg
                 viewBox="0 0 20 20"
                 aria-hidden="true"
-                className={stopEntry ? 'h-[62px] w-[62px]' : 'h-7 w-7'}
+                className={stopEntry ? 'h-16 w-16' : 'h-7 w-7'}
                 initial={false}
                 animate={{ opacity: swapped ? [1, 1, 0.25, 1, 0.25, 1] : stopEntry ? 0.5 : 1 }}
                 transition={swapped ? { duration: PILL_BLINK_S, times: PILL_BLINK_TIMES, ease: 'easeInOut' } : { duration: 0 }}
